@@ -1623,9 +1623,7 @@ function applyImport(incomingWords, incomingGroups){
       example: w.example || '',
       photo: w.photo || null,
       groupIds: Array.isArray(w.groupIds) ? w.groupIds.map(gid => groupIdMap[gid]).filter(Boolean) : [],
-      stats: (w.stats && typeof w.stats === 'object')
-        ? { seen: w.stats.seen||0, correct: w.stats.correct||0, wrong: w.stats.wrong||0, box: w.stats.box||0 }
-        : { seen:0, correct:0, wrong:0, box:0 }
+      stats: { seen:0, correct:0, wrong:0, box:0 }
     });
   });
   saveData();
