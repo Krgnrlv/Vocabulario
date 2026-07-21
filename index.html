@@ -38,6 +38,13 @@ body{
 .app-tagline{ color: var(--muted); margin: 4px 0 0; font-size:0.95rem;}
 .stat-strip{ display:flex; gap:22px; font-family:'IBM Plex Mono', monospace; }
 .user-chip{ display:flex; align-items:center; gap:14px; font-size:0.85rem; color:var(--muted); margin: -2px 0 18px; flex-wrap:wrap; }
+.account-wrap{ position:relative; }
+.account-btn{ width:40px; height:40px; border-radius:50%; background:var(--bg-alt); border:1.5px solid var(--line); color:var(--paper); font-size:1.05rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition: box-shadow 0.15s ease, transform 0.15s ease; }
+.account-btn:hover{ box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--ink); transform: translateY(-1px); }
+.account-overlay{ position:fixed; inset:0; z-index:50; background:transparent; }
+.account-dropdown{ position:absolute; top:48px; right:0; background:var(--paper); color:var(--ink); border-radius:12px; padding:16px; width:250px; box-shadow:0 12px 30px rgba(0,0,0,0.45); z-index:60; text-align:left; }
+.account-dropdown-name{ font-family:'Fraunces', serif; font-weight:600; font-size:1rem; margin-bottom:2px; }
+.account-dropdown-email{ font-size:0.78rem; color:#6c7078; margin-bottom:14px; word-break:break-all; }
 .user-chip button, .user-chip .link-btn{ background:none; border:none; color:var(--gold); font-weight:600; cursor:pointer; font-family:'Inter'; font-size:0.82rem; padding:0; text-decoration:underline; }
 .auth-shell{ max-width:380px; margin: 8vh auto 40px; }
 .auth-card{ background: var(--paper); color: var(--ink); border-radius:12px; padding: 32px 28px; box-shadow: 0 3px 0 rgba(0,0,0,0.18), 0 20px 40px -20px rgba(0,0,0,0.6); }
@@ -290,7 +297,7 @@ let state = {
   groupSort: 'created',
   sharingGroupId: null,
   loggedIn: false,
-  auth: { username: null },
+  auth: { username: null, displayName: null },
   session: null,
   pendingDeletes: { words: [], groups: [] },
   authMode: 'login',
@@ -1414,6 +1421,11 @@ function renderAuthScreen(){
           <label class="field-label">Email</label>
           <input type="text" id="auth-username" placeholder="you@example.com" autocomplete="username" onkeydown="if(event.key==='Enter') ${isRegister?'submitRegister()':'submitLogin()'}">
         </div>
+        ${isRegister ? `
+        <div class="auth-field">
+          <label class="field-label">Имя пользователя</label>
+          <input type="text" id="auth-displayname" placeholder="как к тебе обращаться" autocomplete="nickname" onkeydown="if(event.key==='Enter') submitRegister()">
+        </div>` : ''}
         <div class="auth-field">
           <label class="field-label">Пароль</label>
           <input type="password" id="auth-password" placeholder="минимум 6 символов" autocomplete="${isRegister?'new-password':'current-password'}" onkeydown="if(event.key==='Enter') ${isRegister?'submitRegister()':'submitLogin()'}">
@@ -1443,13 +1455,32 @@ async function afterAuthSuccess(data){
   state.session = normalizeSession(data);
   await persistSession();
   state.auth.username = data.user ? data.user.email : '';
+  state.auth.displayName = null;
   state.authError = '';
   state.authBusy = false;
   try{ state.data = await loadUserData(); }catch(e){ state.data = { words: [], groups: [] }; }
+  try{
+    const res = await dataFetch('/profiles?select=display_name&limit=1');
+    if(res.ok){
+      const rows = await res.json();
+      if(rows[0] && rows[0].display_name) state.auth.displayName = rows[0].display_name;
+    }
+  }catch(e){ /* fall back to email in the UI */ }
   state.loggedIn = true;
   state.view = 'words';
   state.pendingDeletes = { words: [], groups: [] };
   render();
+}
+
+async function setDisplayName(name){
+  try{
+    await dataFetch('/profiles?id=eq.' + state.session.user.id, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ display_name: name })
+    });
+    state.auth.displayName = name;
+  }catch(e){ /* non-critical, email still shows */ }
 }
 
 async function submitLogin(){
@@ -1469,9 +1500,11 @@ async function submitLogin(){
 
 async function submitRegister(){
   const email = document.getElementById('auth-username').value.trim();
+  const displayName = document.getElementById('auth-displayname').value.trim();
   const password = document.getElementById('auth-password').value;
   const password2 = document.getElementById('auth-password2').value;
   if(!email || !email.includes('@')){ state.authError = 'Введите настоящий email.'; render(); return; }
+  if(!displayName){ state.authError = 'Введите имя пользователя.'; render(); return; }
   if(!password || password.length < 6){ state.authError = 'Пароль — минимум 6 символов.'; render(); return; }
   if(password !== password2){ state.authError = 'Пароли не совпадают.'; render(); return; }
   state.authBusy = true; state.authError = ''; render();
@@ -1479,6 +1512,8 @@ async function submitRegister(){
     const data = await authRequest('/auth/v1/signup', { email, password });
     if(data.access_token){
       await afterAuthSuccess(data);
+      await setDisplayName(displayName);
+      render();
     } else {
       state.authBusy = false;
       state.authMode = 'login';
@@ -1629,34 +1664,28 @@ function applyImport(incomingWords, incomingGroups){
   saveData();
 }
 
-function renderSettingsModal(){
+function renderAccountDropdown(){
   return `
-    <div class="modal-overlay" onclick="if(event.target===this) toggleSettings()">
-      <div class="modal-card">
-        <button class="modal-close" onclick="toggleSettings()" title="Закрыть">✕</button>
-        <h2 class="auth-title" style="text-align:left; font-size:1.4rem;">Настройки</h2>
-        <p class="subtle" style="margin-top:-6px;">Аккаунт: <strong style="color:var(--ink);">${escapeHtml(state.auth.username)}</strong></p>
+    <div class="account-dropdown" onclick="event.stopPropagation()">
+      <div class="account-dropdown-name">${escapeHtml(state.auth.displayName || 'Мой словарь')}</div>
+      <div class="account-dropdown-email">${escapeHtml(state.auth.username)}</div>
 
-        <label class="field-label" style="margin-top:18px;">Словарь</label>
-        <div style="display:flex; flex-direction:column; gap:10px; margin-top:6px;">
-          <button class="btn btn-ghost" style="width:100%;" onclick="exportDictionary()">⬇ Скачать словарь (JSON)</button>
-          <label class="btn btn-ghost" for="import-json-file" style="width:100%; text-align:center; cursor:pointer;">⬆ Загрузить JSON в этот словарь</label>
-          <input type="file" accept=".json,application/json" id="import-json-file" class="visually-hidden" onchange="handleImportFile(this)">
+      <button class="btn btn-ghost btn-sm" style="width:100%; margin-bottom:8px;" onclick="exportDictionary()">⬇ Скачать словарь (JSON)</button>
+      <label class="btn btn-ghost btn-sm" for="import-json-file" style="width:100%; text-align:center; cursor:pointer; display:block;">⬆ Загрузить JSON в словарь</label>
+      <input type="file" accept=".json,application/json" id="import-json-file" class="visually-hidden" onchange="handleImportFile(this)">
+
+      ${state.importError ? `<div class="auth-error" style="margin-top:10px;">${escapeHtml(state.importError)}</div>` : ''}
+      ${state.importSuccess ? `<div class="import-success" style="margin-top:10px;">${escapeHtml(state.importSuccess)}</div>` : ''}
+      ${state.pendingImport ? `
+        <div class="confirm-row" style="flex-wrap:wrap; margin-top:10px;">
+          <span class="confirm-text" style="color:var(--coral); font-size:0.8rem;">Добавить ${state.pendingImport.words.length} слов и ${state.pendingImport.groups.length} групп? Существующие не удалятся.</span>
+          <button class="btn btn-danger btn-sm" onclick="confirmImport()">Да</button>
+          <button class="btn btn-ghost btn-sm" onclick="cancelImport()">Отмена</button>
         </div>
+      ` : ''}
 
-        ${state.importError ? `<div class="auth-error" style="margin-top:12px;">${escapeHtml(state.importError)}</div>` : ''}
-        ${state.importSuccess ? `<div class="import-success">${escapeHtml(state.importSuccess)}</div>` : ''}
-        ${state.pendingImport ? `
-          <div class="confirm-row" style="flex-wrap:wrap; margin-top:12px;">
-            <span class="confirm-text" style="color:var(--coral);">Добавить ${state.pendingImport.words.length} слов и ${state.pendingImport.groups.length} групп к текущему словарю? Существующие слова не удалятся.</span>
-            <button class="btn btn-danger btn-sm" onclick="confirmImport()">Да, добавить</button>
-            <button class="btn btn-ghost btn-sm" onclick="cancelImport()">Отмена</button>
-          </div>
-        ` : ''}
-
-        <label class="field-label" style="margin-top:22px;">Аккаунт</label>
-        <button class="btn btn-ghost" style="width:100%; margin-top:6px; color:var(--coral); border-color:rgba(214,90,70,0.4);" onclick="logout()">Выйти из аккаунта</button>
-      </div>
+      <div style="border-top:1px solid #e3dcc8; margin:14px 0 10px;"></div>
+      <button class="btn btn-ghost btn-sm" style="width:100%; color:var(--coral); border-color:rgba(214,90,70,0.4);" onclick="logout()">Выйти из аккаунта</button>
     </div>
   `;
 }
@@ -1678,19 +1707,21 @@ function render(){
         <h1 class="app-title">Vocabulario</h1>
         <p class="app-tagline">Твой личный испанский словарь</p>
       </div>
-      ${renderStats()}
+      <div style="display:flex; align-items:center; gap:18px;">
+        ${renderStats()}
+        <div class="account-wrap">
+          <button class="account-btn" title="Аккаунт" onclick="toggleSettings()">👤</button>
+          ${state.showSettings ? renderAccountDropdown() : ''}
+        </div>
+      </div>
     </div>
-    <div class="user-chip">
-      👤 ${escapeHtml(state.auth.username)}
-      <button class="icon-btn" title="Настройки" onclick="toggleSettings()">⚙️</button>
-    </div>
+    ${state.showSettings ? `<div class="account-overlay" onclick="toggleSettings()"></div>` : ''}
     <nav class="tabs">
       <button class="tab-btn${state.view==='words'?' active':''}" onclick="switchTab('words')">Слова</button>
       <button class="tab-btn${state.view==='groups'?' active':''}" onclick="switchTab('groups')">Группы</button>
       <button class="tab-btn${state.view==='test'?' active':''}" onclick="switchTab('test')">Проверка</button>
     </nav>
     <div class="view-body">${body}</div>
-    ${state.showSettings ? renderSettingsModal() : ''}
   `;
 }
 
@@ -1702,6 +1733,13 @@ function render(){
     try{
       state.data = await loadUserData();
       state.loggedIn = true;
+      try{
+        const res = await dataFetch('/profiles?select=display_name&limit=1');
+        if(res.ok){
+          const rows = await res.json();
+          if(rows[0] && rows[0].display_name) state.auth.displayName = rows[0].display_name;
+        }
+      }catch(e){ /* fall back to email in the UI */ }
     } catch(e){
       await performLocalLogout();
     }
