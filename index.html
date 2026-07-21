@@ -169,7 +169,7 @@ input::placeholder, textarea::placeholder{ color:#9a9d9f; }
 .card .file-btn, .group-card .file-btn{ color: var(--ink); border-color: rgba(34,38,45,0.28); }
 .card .field-label, .group-card .field-label, .modal-card .field-label, .auth-card .field-label{ color:#6c7078; }
 .card .subtle, .group-card .subtle, .modal-card .subtle, .auth-card .subtle{ color:#6c7078; }
-.card .btn-ghost, .group-card .btn-ghost, .modal-card .btn-ghost, .auth-card .btn-ghost{ color:#4a4e55; border-color:#c9c2ab; }
+.card .btn-ghost, .group-card .btn-ghost, .modal-card .btn-ghost, .auth-card .btn-ghost, .account-dropdown .btn-ghost{ color:#4a4e55; border-color:#c9c2ab; }
 .photo-thumb-wrap{ position:relative; display:inline-block; margin-top:8px; }
 .photo-thumb{ width:74px; height:74px; object-fit:cover; border-radius:8px; display:block; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
 .photo-remove{ position:absolute; top:-8px; right:-8px; background: var(--coral); color:var(--paper); border-radius:50%; width:20px; height:20px; padding:0; font-size:0.7rem; display:flex; align-items:center; justify-content:center; }
@@ -1670,8 +1670,8 @@ function renderAccountDropdown(){
       <div class="account-dropdown-name">${escapeHtml(state.auth.displayName || 'Мой словарь')}</div>
       <div class="account-dropdown-email">${escapeHtml(state.auth.username)}</div>
 
-      <button class="btn btn-ghost btn-sm" style="width:100%; margin-bottom:8px;" onclick="exportDictionary()">⬇ Скачать словарь (JSON)</button>
-      <label class="btn btn-ghost btn-sm" for="import-json-file" style="width:100%; text-align:center; cursor:pointer; display:block;">⬆ Загрузить JSON в словарь</label>
+      <button class="btn btn-ghost btn-sm" style="width:100%; margin-bottom:8px;" onclick="exportDictionary()">⬇ Скачать словарь</button>
+      <label class="btn btn-ghost btn-sm" for="import-json-file" style="width:100%; text-align:center; cursor:pointer; display:block;">⬆ Загрузить уже существующий словарь</label>
       <input type="file" accept=".json,application/json" id="import-json-file" class="visually-hidden" onchange="handleImportFile(this)">
 
       ${state.importError ? `<div class="auth-error" style="margin-top:10px;">${escapeHtml(state.importError)}</div>` : ''}
