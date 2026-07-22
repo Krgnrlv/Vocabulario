@@ -36,6 +36,7 @@ let state = {
   data: { words: [], groups: [] },
   view: 'words',
   wordFilter: { search: '', groupId: 'all' },
+  wordSort: 'added',
   editingWordId: null,
   editingGroupId: null,
   pendingDeleteWord: null,
@@ -50,6 +51,7 @@ let state = {
   testSession: null,
   pendingResetProgress: false,
   groupSort: 'created',
+  expandedGroupId: null,
   sharingGroupId: null,
   loggedIn: false,
   auth: { username: null, displayName: null },
@@ -347,9 +349,9 @@ function renderWordsView(){
 
     <div class="filter-bar">
       <input type="text" id="search-input" placeholder="Поиск по слову или переводу…" value="${escapeHtml(state.wordFilter.search)}" oninput="onSearchInput(this.value)">
-      <select id="group-filter" onchange="onGroupFilterChange(this.value)">
-        <option value="all"${state.wordFilter.groupId==='all'?' selected':''}>Все группы</option>
-        ${groups.map(g => `<option value="${g.id}"${state.wordFilter.groupId===g.id?' selected':''}>${escapeHtml(g.name)}</option>`).join('')}
+      <select id="word-sort" onchange="onWordSortChange(this.value)">
+        <option value="added"${state.wordSort==='added'?' selected':''}>По порядку добавления</option>
+        <option value="alpha"${state.wordSort==='alpha'?' selected':''}>По алфавиту (А-Я)</option>
       </select>
     </div>
 
@@ -359,12 +361,14 @@ function renderWordsView(){
 
 function filteredWords(){
   const search = state.wordFilter.search.trim().toLowerCase();
-  const gid = state.wordFilter.groupId;
-  return state.data.words.filter(w => {
-    if(gid !== 'all' && !w.groupIds.includes(gid)) return false;
+  let words = state.data.words.filter(w => {
     if(search && !(w.es.toLowerCase().includes(search) || w.ru.toLowerCase().includes(search))) return false;
     return true;
   });
+  if(state.wordSort === 'alpha'){
+    words = words.slice().sort((a,b) => a.es.localeCompare(b.es, 'es'));
+  }
+  return words;
 }
 
 function renderWordListInner(){
@@ -457,7 +461,7 @@ function addWord(){
   const example = document.getElementById('input-example').value.trim();
   if(!es || !ru){ flashInvalid(); return; }
   const groupIds = Array.from(document.querySelectorAll('.new-word-group:checked')).map(el => el.value);
-  state.data.words.unshift({
+  state.data.words.push({
     id: uid('w'), es, ru, example, groupIds, photo: state.pendingWordPhoto || null,
     stats: { seen:0, correct:0, wrong:0, box:0 }
   });
@@ -493,8 +497,8 @@ function onSearchInput(value){
   state.wordFilter.search = value;
   document.getElementById('word-list').innerHTML = renderWordListInner();
 }
-function onGroupFilterChange(value){
-  state.wordFilter.groupId = value;
+function onWordSortChange(value){
+  state.wordSort = value;
   document.getElementById('word-list').innerHTML = renderWordListInner();
 }
 
@@ -603,21 +607,39 @@ function renderGroupCard(g){
   if(state.editingGroupId === g.id){
     return renderGroupEditCard(g);
   }
-  const count = state.data.words.filter(w => w.groupIds.includes(g.id)).length;
+  const words = state.data.words.filter(w => w.groupIds.includes(g.id));
+  const count = words.length;
+  const isExpanded = state.expandedGroupId === g.id;
+  const wordsHtml = words.length
+    ? words.map(w => `
+        <div class="group-word-row">
+          ${w.photo ? `<img src="${w.photo}" class="group-word-photo" alt="">` : ''}
+          <span class="group-word-es">${escapeHtml(w.es)}</span>
+          <span class="group-word-ru">${escapeHtml(w.ru)}</span>
+        </div>
+      `).join('')
+    : `<p class="subtle" style="padding:8px 4px;">В этой группе пока нет слов.</p>`;
   return `
     <div class="group-card" style="--tab-color:${g.color}">
-      <div class="group-row" onclick="openGroupInWords('${g.id}')">
+      <div class="group-row" onclick="toggleGroupExpand('${g.id}')">
         ${g.photo ? `<img src="${g.photo}" class="group-photo" alt="${escapeHtml(g.name)}">` : ''}
         <div style="flex:1;">
           <div class="group-name">${escapeHtml(g.name)}</div>
           <div class="group-count">${count} ${wordNounForm(count)}</div>
         </div>
         <div class="card-actions">
+          <span class="group-expand-arrow${isExpanded ? ' open' : ''}">▾</span>
           <button class="icon-btn" title="Изменить" onclick="event.stopPropagation(); startEditGroup('${g.id}')">✎</button>
         </div>
       </div>
+      ${isExpanded ? `<div class="group-word-list">${wordsHtml}</div>` : ''}
     </div>
   `;
+}
+
+function toggleGroupExpand(id){
+  state.expandedGroupId = state.expandedGroupId === id ? null : id;
+  render();
 }
 
 function toggleShareGroup(id){
@@ -696,7 +718,7 @@ function renderGroupEditCard(g){
         ${isSharing ? `
           <div class="confirm-row" style="flex-wrap:wrap;">
             <span class="confirm-text" style="color:var(--ink); font-weight:600;">Поделиться «${escapeHtml(g.name)}» (${count} ${wordNounForm(count)}):</span>
-            <button class="btn btn-primary btn-sm" onclick="shareGroupFile('${g.id}')">Скачать файл группы</button>
+            <button class="btn btn-primary btn-sm" onclick="shareGroupFile('${g.id}')">⬇ Скачать файл группы</button>
             <button class="btn btn-ghost btn-sm" onclick="toggleShareGroup('${g.id}')">Закрыть</button>
           </div>` : ''}
         ${isPendingDelete ? `
@@ -809,11 +831,6 @@ function deleteGroup(id){
   state.sharingGroupId = null;
   if(state.editingGroupId === id) state.editingGroupId = null;
   saveData();
-  render();
-}
-function openGroupInWords(id){
-  state.wordFilter.groupId = id;
-  state.view = 'words';
   render();
 }
 
@@ -1425,8 +1442,8 @@ function renderAccountDropdown(){
       <div class="account-dropdown-name">${escapeHtml(state.auth.displayName || 'Мой словарь')}</div>
       <div class="account-dropdown-email">${escapeHtml(state.auth.username)}</div>
 
-      <button class="btn btn-ghost btn-sm" style="width:100%; margin-bottom:8px;" onclick="exportDictionary()">Скачать словарь</button>
-      <label class="btn btn-ghost btn-sm" for="import-json-file" style="width:100%; text-align:center; cursor:pointer; display:block;">Загрузить уже существующий словарь</label>
+      <button class="btn btn-ghost btn-sm" style="width:100%; margin-bottom:8px;" onclick="exportDictionary()">⬇ Скачать словарь</button>
+      <label class="btn btn-ghost btn-sm" for="import-json-file" style="width:100%; text-align:center; cursor:pointer; display:block;">⬆ Загрузить уже существующий словарь</label>
       <input type="file" accept=".json,application/json" id="import-json-file" class="visually-hidden" onchange="handleImportFile(this)">
 
       ${state.importError ? `<div class="auth-error" style="margin-top:10px;">${escapeHtml(state.importError)}</div>` : ''}
@@ -1462,7 +1479,7 @@ function render(){
         <h1 class="app-title">Vocabulario</h1>
         <p class="app-tagline">Твой личный испанский словарь</p>
       </div>
-      <div style="display:flex; align-items:center; gap:25px;">
+      <div style="display:flex; align-items:center; gap:18px;">
         ${renderStats()}
         <div class="account-wrap">
           <button class="account-btn" title="Аккаунт" onclick="toggleSettings()">👤</button>
