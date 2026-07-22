@@ -150,6 +150,14 @@ input::placeholder, textarea::placeholder{ color:#9a9d9f; }
 .group-expand-arrow{ color:#8a8e94; font-size:0.9rem; transition: transform 0.15s ease; display:inline-block; margin-right:2px; }
 .group-expand-arrow.open{ transform: rotate(180deg); }
 .group-word-list{ margin-top:14px; padding-top:12px; border-top:1px solid #e3dcc8; display:flex; flex-direction:column; gap:6px; max-height:340px; overflow-y:auto; }
+.word-picker-list{ display:flex; flex-direction:column; gap:2px; max-height:220px; overflow-y:auto; border:1.5px solid rgba(34,38,45,0.2); border-radius:8px; padding:6px; background:#ffffff; }
+.word-picker-row{ display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:6px; font-size:0.88rem; color:var(--ink); }
+.word-picker-row:hover{ background:rgba(0,0,0,0.06); }
+.word-picker-row-clickable{ cursor:pointer; }
+.word-picker-photo{ width:26px; height:26px; object-fit:cover; border-radius:5px; flex-shrink:0; }
+.word-picker-es{ font-weight:600; min-width:110px; color:var(--ink); }
+.word-picker-ru{ color:#5a5e64; flex:1; }
+.word-picker-add{ color:var(--teal); font-weight:700; font-size:1.1rem; }
 .group-word-row{ display:flex; align-items:center; gap:10px; padding:5px 4px; border-radius:6px; }
 .group-word-row:hover{ background:rgba(0,0,0,0.04); }
 .group-word-photo{ width:28px; height:28px; object-fit:cover; border-radius:5px; flex-shrink:0; }

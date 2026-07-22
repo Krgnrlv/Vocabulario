@@ -52,6 +52,10 @@ let state = {
   pendingResetProgress: false,
   groupSort: 'created',
   expandedGroupId: null,
+  newGroupSelectedWordIds: [],
+  newGroupWordSearch: '',
+  addWordsPanelGroupId: null,
+  addWordsPanelSearch: '',
   sharingGroupId: null,
   loggedIn: false,
   auth: { username: null, displayName: null },
@@ -554,7 +558,7 @@ function deleteWord(id){
 
 function renderGroupsView(){
   const swatches = GROUP_COLORS.map(c => `
-    <div class="swatch${state.addGroupColor===c.hex?' selected':''}" style="background:${c.hex}" title="${c.name}" onclick="selectGroupColor('${c.hex}')"></div>
+    <div class="swatch${state.addGroupColor===c.hex?' selected':''}" data-color="${c.hex}" style="background:${c.hex}" title="${c.name}" onclick="selectGroupColor('${c.hex}')"></div>
   `).join('');
 
   const groupsHtml = state.data.groups.length ? sortedGroups().map(g => renderGroupCard(g)).join('') :
@@ -566,14 +570,20 @@ function renderGroupsView(){
       <label class="field-label">Название</label>
       <input type="text" id="input-group-name" placeholder="например, Еда и напитки">
       <label class="field-label" style="margin-top:12px;">Цвет</label>
-      <div class="color-swatch-row">${swatches}</div>
+      <div class="color-swatch-row" id="new-group-swatches">${swatches}</div>
       <label class="field-label">Обложка (необязательно)</label>
       <div class="photo-input-row">
         <label class="file-btn" for="input-group-photo-file"><span class="file-btn-icon">🖼️</span> Выбрать обложку</label>
         <input type="file" accept="image/*" id="input-group-photo-file" class="visually-hidden" onchange="handleNewGroupPhoto(this)">
       </div>
       <div class="group-photo-row" id="new-group-photo-preview">${state.pendingGroupPhoto ? photoPreviewHtml(state.pendingGroupPhoto, 'clearNewGroupPhoto()') : ''}</div>
-      <button class="btn btn-primary" onclick="addGroup()">Создать группу</button>
+      <label class="field-label">Добавить уже существующие слова (необязательно)</label>
+      ${state.data.words.length ? `
+        <input type="text" id="new-group-word-search" placeholder="Поиск по слову или переводу…" style="margin-bottom:8px;" oninput="onNewGroupWordSearch(this.value)">
+        <div class="word-picker-list" id="new-group-word-picker">${renderWordPickerList(state.newGroupWordSearch, state.newGroupSelectedWordIds, 'toggleNewGroupWord')}</div>
+        <p class="subtle" id="new-group-word-counter" style="margin-top:6px;">${state.newGroupSelectedWordIds.length ? `Выбрано слов: ${state.newGroupSelectedWordIds.length}` : 'Отметь слова, которые нужно сразу включить в группу.'}</p>
+      ` : `<p class="subtle">В словаре пока нет слов — сначала добавь их на вкладке «Слова».</p>`}
+      <button class="btn btn-primary" style="margin-top:10px;" onclick="addGroup()">Создать группу</button>
     </div>
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
       <h2 class="section-title" style="margin:0;">Мои группы</h2>
@@ -619,6 +629,7 @@ function renderGroupCard(g){
         </div>
       `).join('')
     : `<p class="subtle" style="padding:8px 4px;">В этой группе пока нет слов.</p>`;
+  const isAddPanelOpen = state.addWordsPanelGroupId === g.id;
   return `
     <div class="group-card" style="--tab-color:${g.color}">
       <div class="group-row" onclick="toggleGroupExpand('${g.id}')">
@@ -632,13 +643,96 @@ function renderGroupCard(g){
           <button class="icon-btn" title="Изменить" onclick="event.stopPropagation(); startEditGroup('${g.id}')">✎</button>
         </div>
       </div>
-      ${isExpanded ? `<div class="group-word-list">${wordsHtml}</div>` : ''}
+      ${isExpanded ? `
+        <div class="group-word-list">${wordsHtml}</div>
+        <div style="margin-top:10px;" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost btn-sm" onclick="toggleAddWordsPanel('${g.id}')">${isAddPanelOpen ? '✕ Закрыть' : '+ Добавить существующие слова'}</button>
+          ${isAddPanelOpen ? `
+            <div style="margin-top:10px;">
+              <input type="text" id="add-words-panel-search" placeholder="Поиск по слову или переводу…" style="margin-bottom:8px;" oninput="onAddWordsPanelSearch(this.value, '${g.id}')">
+              <div class="word-picker-list" id="add-words-panel-picker">${renderWordPickerAddList(state.addWordsPanelSearch, g.id)}</div>
+            </div>
+          ` : ''}
+        </div>
+      ` : ''}
     </div>
   `;
 }
 
 function toggleGroupExpand(id){
   state.expandedGroupId = state.expandedGroupId === id ? null : id;
+  if(state.expandedGroupId !== id){
+    state.addWordsPanelGroupId = null;
+    state.addWordsPanelSearch = '';
+  }
+  render();
+}
+
+function renderWordPickerChecklist(search, selectedIds){
+  const term = (search || '').trim().toLowerCase();
+  const words = state.data.words.filter(w => !term || w.es.toLowerCase().includes(term) || w.ru.toLowerCase().includes(term));
+  if(words.length === 0) return `<p class="subtle" style="padding:8px 4px;">Ничего не найдено.</p>`;
+  return words.map(w => `
+    <label class="word-picker-row">
+      <input type="checkbox" ${selectedIds.includes(w.id)?'checked':''} onchange="toggleNewGroupWord('${w.id}')">
+      ${w.photo ? `<img src="${w.photo}" class="word-picker-photo" alt="">` : ''}
+      <span class="word-picker-es">${escapeHtml(w.es)}</span>
+      <span class="word-picker-ru">${escapeHtml(w.ru)}</span>
+    </label>
+  `).join('');
+}
+
+function toggleNewGroupWord(id){
+  const idx = state.newGroupSelectedWordIds.indexOf(id);
+  if(idx === -1) state.newGroupSelectedWordIds.push(id);
+  else state.newGroupSelectedWordIds.splice(idx, 1);
+  const picker = document.getElementById('new-group-word-picker');
+  if(picker) picker.innerHTML = renderWordPickerChecklist(state.newGroupWordSearch, state.newGroupSelectedWordIds);
+  const counter = document.getElementById('new-group-word-counter');
+  if(counter) counter.textContent = state.newGroupSelectedWordIds.length ? `Выбрано слов: ${state.newGroupSelectedWordIds.length}` : 'Отметь слова, которые нужно сразу включить в группу.';
+}
+
+function onNewGroupWordSearch(value){
+  state.newGroupWordSearch = value;
+  const picker = document.getElementById('new-group-word-picker');
+  if(picker) picker.innerHTML = renderWordPickerChecklist(value, state.newGroupSelectedWordIds);
+}
+
+function renderWordPickerAddList(search, groupId){
+  const term = (search || '').trim().toLowerCase();
+  const words = state.data.words.filter(w => {
+    if(w.groupIds.includes(groupId)) return false;
+    if(term && !(w.es.toLowerCase().includes(term) || w.ru.toLowerCase().includes(term))) return false;
+    return true;
+  });
+  if(words.length === 0) return `<p class="subtle" style="padding:8px 4px;">${term ? 'Ничего не найдено.' : 'Все слова словаря уже в этой группе.'}</p>`;
+  return words.map(w => `
+    <div class="word-picker-row word-picker-row-clickable" onclick="addExistingWordToGroup('${w.id}','${groupId}')">
+      ${w.photo ? `<img src="${w.photo}" class="word-picker-photo" alt="">` : ''}
+      <span class="word-picker-es">${escapeHtml(w.es)}</span>
+      <span class="word-picker-ru">${escapeHtml(w.ru)}</span>
+      <span class="word-picker-add">+</span>
+    </div>
+  `).join('');
+}
+
+function toggleAddWordsPanel(groupId){
+  state.addWordsPanelGroupId = state.addWordsPanelGroupId === groupId ? null : groupId;
+  state.addWordsPanelSearch = '';
+  render();
+}
+
+function onAddWordsPanelSearch(value, groupId){
+  state.addWordsPanelSearch = value;
+  const picker = document.getElementById('add-words-panel-picker');
+  if(picker) picker.innerHTML = renderWordPickerAddList(value, groupId);
+}
+
+function addExistingWordToGroup(wordId, groupId){
+  const w = state.data.words.find(x => x.id === wordId);
+  if(!w) return;
+  if(!w.groupIds.includes(groupId)) w.groupIds.push(groupId);
+  saveData();
   render();
 }
 
@@ -683,22 +777,34 @@ function shareGroupFile(id){
   render();
 }
 
+function selectEditGroupColor(hex){
+  state.editGroupColor = hex;
+  const container = document.getElementById('edit-group-swatches');
+  if(container){
+    container.querySelectorAll('.swatch').forEach(el => {
+      el.classList.toggle('selected', el.getAttribute('data-color') === hex);
+    });
+  }
+  const card = document.getElementById('edit-group-card-preview');
+  if(card) card.style.setProperty('--tab-color', hex);
+}
+
 function renderGroupEditCard(g){
   const currentColor = state.editGroupColor || g.color;
   const swatches = GROUP_COLORS.map(c => `
-    <div class="swatch${currentColor===c.hex?' selected':''}" style="background:${c.hex}" title="${c.name}" onclick="state.editGroupColor='${c.hex}'; render();"></div>
+    <div class="swatch${currentColor===c.hex?' selected':''}" data-color="${c.hex}" style="background:${c.hex}" title="${c.name}" onclick="selectEditGroupColor('${c.hex}')"></div>
   `).join('');
   const photo = currentEditGroupPhoto(g);
   const count = state.data.words.filter(w => w.groupIds.includes(g.id)).length;
   const isSharing = state.sharingGroupId === g.id;
   const isPendingDelete = state.pendingDeleteGroup === g.id;
   return `
-    <div class="group-card" style="--tab-color:${currentColor}; cursor:default;">
+    <div class="group-card" style="--tab-color:${currentColor}; cursor:default;" id="edit-group-card-preview">
       <div style="display:flex; flex-direction:column; gap:10px;">
         <label class="field-label">Название</label>
         <input type="text" id="edit-group-name" value="${escapeHtml(g.name)}">
         <label class="field-label" style="margin-top:6px;">Цвет</label>
-        <div class="color-swatch-row">${swatches}</div>
+        <div class="color-swatch-row" id="edit-group-swatches">${swatches}</div>
         <label class="field-label">Обложка</label>
         <div class="photo-input-row">
           <label class="file-btn" for="edit-group-photo-file"><span class="file-btn-icon">🖼️</span> Заменить обложку</label>
@@ -791,15 +897,34 @@ function wordNounForm(n){
   return 'слов';
 }
 
-function selectGroupColor(hex){ state.addGroupColor = hex; render(); }
+function selectGroupColor(hex){
+  state.addGroupColor = hex;
+  const container = document.getElementById('new-group-swatches');
+  if(container){
+    container.querySelectorAll('.swatch').forEach(el => {
+      el.classList.toggle('selected', el.getAttribute('data-color') === hex);
+    });
+  }
+}
 
 function addGroup(){
   const nameInput = document.getElementById('input-group-name');
   const name = nameInput.value.trim();
   if(!name) return;
-  state.data.groups.push({ id: uid('g'), name, color: state.addGroupColor, photo: state.pendingGroupPhoto || null });
+  const groupId = uid('g');
+  state.data.groups.push({ id: groupId, name, color: state.addGroupColor, photo: state.pendingGroupPhoto || null });
+
+  state.newGroupSelectedWordIds.forEach(wid => {
+    const w = state.data.words.find(x => x.id === wid);
+    if(w && !w.groupIds.includes(groupId)) w.groupIds.push(groupId);
+  });
+  const addedCount = state.newGroupSelectedWordIds.length;
+
   state.addGroupColor = GROUP_COLORS[Math.floor(Math.random()*GROUP_COLORS.length)].hex;
   state.pendingGroupPhoto = null;
+  state.newGroupSelectedWordIds = [];
+  state.newGroupWordSearch = '';
+  if(addedCount > 0) state.expandedGroupId = groupId;
   saveData();
   render();
 }
