@@ -577,12 +577,16 @@ function renderGroupsView(){
         <input type="file" accept="image/*" id="input-group-photo-file" class="visually-hidden" onchange="handleNewGroupPhoto(this)">
       </div>
       <div class="group-photo-row" id="new-group-photo-preview">${state.pendingGroupPhoto ? photoPreviewHtml(state.pendingGroupPhoto, 'clearNewGroupPhoto()') : ''}</div>
-      <label class="field-label">Добавить уже существующие слова (необязательно)</label>
       ${state.data.words.length ? `
-        <input type="text" id="new-group-word-search" placeholder="Поиск по слову или переводу…" style="margin-bottom:8px;" oninput="onNewGroupWordSearch(this.value)">
-        <div class="word-picker-list" id="new-group-word-picker">${renderWordPickerChecklist(state.newGroupWordSearch, state.newGroupSelectedWordIds)}</div>
-        <p class="subtle" id="new-group-word-counter" style="margin-top:6px;">${state.newGroupSelectedWordIds.length ? `Выбрано слов: ${state.newGroupSelectedWordIds.length}` : 'Отметь слова, которые нужно сразу включить в группу.'}</p>
-      ` : `<p class="subtle">В словаре пока нет слов — сначала добавь их на вкладке «Слова».</p>`}
+        <button type="button" class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="toggleNewGroupWordPicker()">${state.showNewGroupWordPicker ? '✕ Скрыть выбор слов' : '+ Добавить уже существующие слова'}${state.newGroupSelectedWordIds.length ? ` (${state.newGroupSelectedWordIds.length})` : ''}</button>
+        ${state.showNewGroupWordPicker ? `
+          <div style="margin-top:10px;">
+            <input type="text" id="new-group-word-search" placeholder="Поиск по слову или переводу…" style="margin-bottom:8px;" oninput="onNewGroupWordSearch(this.value)">
+            <div class="word-picker-list" id="new-group-word-picker">${renderWordPickerChecklist(state.newGroupWordSearch, state.newGroupSelectedWordIds)}</div>
+            <p class="subtle" id="new-group-word-counter" style="margin-top:6px;">${state.newGroupSelectedWordIds.length ? `Выбрано слов: ${state.newGroupSelectedWordIds.length}` : 'Отметь слова, которые нужно сразу включить в группу.'}</p>
+          </div>
+        ` : ''}
+      ` : ''}
       <button class="btn btn-primary" style="margin-top:10px;" onclick="addGroup()">Создать группу</button>
     </div>
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
