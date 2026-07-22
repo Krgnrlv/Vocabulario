@@ -580,7 +580,7 @@ function renderGroupsView(){
       <label class="field-label">Добавить уже существующие слова (необязательно)</label>
       ${state.data.words.length ? `
         <input type="text" id="new-group-word-search" placeholder="Поиск по слову или переводу…" style="margin-bottom:8px;" oninput="onNewGroupWordSearch(this.value)">
-        <div class="word-picker-list" id="new-group-word-picker">${renderWordPickerList(state.newGroupWordSearch, state.newGroupSelectedWordIds, 'toggleNewGroupWord')}</div>
+        <div class="word-picker-list" id="new-group-word-picker">${renderWordPickerChecklist(state.newGroupWordSearch, state.newGroupSelectedWordIds)}</div>
         <p class="subtle" id="new-group-word-counter" style="margin-top:6px;">${state.newGroupSelectedWordIds.length ? `Выбрано слов: ${state.newGroupSelectedWordIds.length}` : 'Отметь слова, которые нужно сразу включить в группу.'}</p>
       ` : `<p class="subtle">В словаре пока нет слов — сначала добавь их на вкладке «Слова».</p>`}
       <button class="btn btn-primary" style="margin-top:10px;" onclick="addGroup()">Создать группу</button>
