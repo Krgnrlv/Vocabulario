@@ -1462,7 +1462,7 @@ function render(){
         <h1 class="app-title">Vocabulario</h1>
         <p class="app-tagline">Твой личный испанский словарь</p>
       </div>
-      <div style="display:flex; align-items:center; gap:18px;">
+      <div style="display:flex; align-items:center; gap:25px;">
         ${renderStats()}
         <div class="account-wrap">
           <button class="account-btn" title="Аккаунт" onclick="toggleSettings()">👤</button>
