@@ -32,7 +32,7 @@ body{
 .stat-strip{ display:flex; gap:22px; font-family:'IBM Plex Mono', monospace; }
 .user-chip{ display:flex; align-items:center; gap:14px; font-size:0.85rem; color:var(--muted); margin: -2px 0 18px; flex-wrap:wrap; }
 .account-wrap{ position:relative; }
-.account-btn{ width:40px; height:40px; border-radius:50%; background:var(--bg-alt); border:1.5px solid var(--line); color:var(--paper); font-size:1.05rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition: box-shadow 0.15s ease, transform 0.15s ease; }
+.account-btn{ width:50px; height:50px; border-radius:50%; background:var(--bg-alt); border:2px solid var(--line); color:var(--paper); font-size:1.5rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition: box-shadow 0.15s ease, transform 0.15s ease; }
 .account-btn:hover{ box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--ink); transform: translateY(-1px); }
 .account-overlay{ position:fixed; inset:0; z-index:50; background:transparent; }
 .account-dropdown{ position:absolute; top:48px; right:0; background:var(--paper); color:var(--ink); border-radius:12px; padding:16px; width:250px; box-shadow:0 12px 30px rgba(0,0,0,0.45); z-index:60; text-align:left; }
