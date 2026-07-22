@@ -696,7 +696,7 @@ function renderGroupEditCard(g){
         ${isSharing ? `
           <div class="confirm-row" style="flex-wrap:wrap;">
             <span class="confirm-text" style="color:var(--ink); font-weight:600;">Поделиться «${escapeHtml(g.name)}» (${count} ${wordNounForm(count)}):</span>
-            <button class="btn btn-primary btn-sm" onclick="shareGroupFile('${g.id}')">⬇ Скачать файл группы</button>
+            <button class="btn btn-primary btn-sm" onclick="shareGroupFile('${g.id}')">Скачать файл группы</button>
             <button class="btn btn-ghost btn-sm" onclick="toggleShareGroup('${g.id}')">Закрыть</button>
           </div>` : ''}
         ${isPendingDelete ? `
@@ -1425,8 +1425,8 @@ function renderAccountDropdown(){
       <div class="account-dropdown-name">${escapeHtml(state.auth.displayName || 'Мой словарь')}</div>
       <div class="account-dropdown-email">${escapeHtml(state.auth.username)}</div>
 
-      <button class="btn btn-ghost btn-sm" style="width:100%; margin-bottom:8px;" onclick="exportDictionary()">⬇ Скачать словарь</button>
-      <label class="btn btn-ghost btn-sm" for="import-json-file" style="width:100%; text-align:center; cursor:pointer; display:block;">⬆ Загрузить уже существующий словарь</label>
+      <button class="btn btn-ghost btn-sm" style="width:100%; margin-bottom:8px;" onclick="exportDictionary()">Скачать словарь</button>
+      <label class="btn btn-ghost btn-sm" for="import-json-file" style="width:100%; text-align:center; cursor:pointer; display:block;">Загрузить уже существующий словарь</label>
       <input type="file" accept=".json,application/json" id="import-json-file" class="visually-hidden" onchange="handleImportFile(this)">
 
       ${state.importError ? `<div class="auth-error" style="margin-top:10px;">${escapeHtml(state.importError)}</div>` : ''}
